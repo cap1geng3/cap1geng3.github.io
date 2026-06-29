@@ -286,6 +286,84 @@
 
   /* ── Section title ── */
   .section-divider { border: none; border-top: 0.5px solid var(--border-light); margin: 2px 0; }
+
+  /* ── Calendar View ── */
+  .cal-wrap { display: flex; gap: 0; height: calc(100vh - 52px); overflow: hidden; }
+
+  /* LEFT — Appointment List */
+  .cal-list-pane {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden;
+    border-right: 0.5px solid var(--border-light);
+  }
+  .cal-list-header {
+    padding: 14px 20px 10px; background: var(--bg-primary);
+    border-bottom: 0.5px solid var(--border-light); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .cal-list-date-title { font-size: 16px; font-weight: 700; color: var(--text-primary); }
+  .cal-list-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+  .appt-item {
+    background: var(--bg-primary); border: 0.5px solid var(--border-light);
+    border-left: 3px solid var(--accent); border-radius: var(--radius-md);
+    padding: 11px 14px; margin-bottom: 10px; cursor: pointer;
+    transition: box-shadow 0.15s, border-color 0.15s;
+  }
+  .appt-item:hover { box-shadow: var(--shadow-sm); border-left-color: var(--accent-dark); }
+  .appt-time-badge {
+    font-size: 11px; font-weight: 700; color: var(--accent);
+    background: var(--accent-light); padding: 2px 8px; border-radius: 20px;
+    display: inline-flex; align-items: center; gap: 4px; margin-bottom: 6px;
+  }
+  .appt-subject { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 3px; }
+  .appt-client { font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; }
+  .appt-detail-text { font-size: 11px; color: var(--text-tertiary); margin-top: 4px; white-space: pre-wrap; }
+
+  /* RIGHT — Mini Calendar */
+  .cal-right-pane {
+    width: 300px; flex-shrink: 0; background: var(--bg-primary);
+    display: flex; flex-direction: column; padding: 16px;
+  }
+  .mini-cal { user-select: none; }
+  .mini-cal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .mini-cal-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+  .mini-cal-nav {
+    width: 28px; height: 28px; border-radius: var(--radius-sm); border: 0.5px solid var(--border-light);
+    background: var(--bg-primary); cursor: pointer; display: flex; align-items: center;
+    justify-content: center; color: var(--text-secondary); font-size: 14px; transition: all 0.15s;
+  }
+  .mini-cal-nav:hover { background: var(--bg-secondary); color: var(--text-primary); }
+  .mini-cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; }
+  .mini-cal-dow {
+    text-align: center; font-size: 10px; font-weight: 600; color: var(--text-tertiary);
+    padding: 4px 0; text-transform: uppercase;
+  }
+  .mini-cal-day {
+    text-align: center; padding: 5px 2px; font-size: 12px; border-radius: 50%;
+    cursor: pointer; color: var(--text-primary); transition: all 0.12s; line-height: 1.6;
+    width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+    margin: auto;
+  }
+  .mini-cal-day:hover:not(.empty-day) { background: var(--bg-secondary); }
+  .mini-cal-day.other-month { color: var(--text-tertiary); }
+  .mini-cal-day.today { background: var(--accent); color: #fff; font-weight: 700; }
+  .mini-cal-day.selected:not(.today) { background: var(--accent-light); color: var(--accent-dark); font-weight: 600; border: 1.5px solid var(--accent); }
+  .mini-cal-day.has-appt:not(.today) { color: var(--danger); font-weight: 700; }
+  .mini-cal-day.has-appt.today { background: var(--accent); color: #fff; box-shadow: 0 0 0 2px var(--danger); }
+  .empty-day { cursor: default; }
+
+  /* Card appointment list inside card modal */
+  .card-appt-list { display: flex; flex-direction: column; gap: 6px; }
+  .card-appt-row {
+    display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+    background: var(--bg-secondary); border-radius: var(--radius-md);
+    border: 0.5px solid var(--border-light); cursor: pointer; transition: box-shadow 0.15s;
+  }
+  .card-appt-row:hover { box-shadow: var(--shadow-sm); }
+  .card-appt-date { font-size: 11px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+  .card-appt-subject { flex: 1; font-size: 12px; font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
@@ -305,6 +383,9 @@ window.__CRM_CONFIG__ = {
   <div class="topbar">
     <div class="logo"><div class="logo-dot"></div> SalesCRM</div>
     <div class="nav-tabs">
+      <button class="nav-tab" id="tab-calendar" onclick="switchView('calendar')" title="ปฏิทินนัดหมาย">
+        <i class="ti ti-calendar-event"></i> Calendar
+      </button>
       <button class="nav-tab active" id="tab-pipeline" onclick="switchView('pipeline')">
         <i class="ti ti-layout-kanban"></i> Pipeline
       </button>
@@ -433,6 +514,36 @@ const DB = {
     const { error } = await getSB().from('job_types').upsert({ name }, { onConflict: 'name', ignoreDuplicates: true });
     if (error) throw new Error(error.message);
   },
+
+  // ── Appointments ───────────────────────────────────────────────
+  async loadAppointments() {
+    const { data, error } = await getSB()
+      .from('appointments').select('*').order('appt_date').order('appt_time');
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
+  async insertAppointment(a) {
+    const { data, error } = await getSB().from('appointments').insert({
+      card_id: a.cardId || null, card_title: a.cardTitle || null,
+      appt_date: a.apptDate, appt_time: a.apptTime,
+      subject: a.subject, detail: a.detail || null,
+    }).select().single();
+    if (error) throw new Error(error.message);
+    return data;
+  },
+  async updateAppointment(id, a) {
+    const { error } = await getSB().from('appointments').update({
+      card_id: a.cardId || null, card_title: a.cardTitle || null,
+      appt_date: a.apptDate, appt_time: a.apptTime,
+      subject: a.subject, detail: a.detail || null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', id);
+    if (error) throw new Error(error.message);
+  },
+  async deleteAppointment(id) {
+    const { error } = await getSB().from('appointments').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+  },
 };
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
@@ -481,13 +592,16 @@ const STAGE_COLORS = ['#185FA5','#0F6E56','#BA7517','#993C1D','#533AB7','#993556
 
 let state = {
   view: 'pipeline',
-  stages:    [],
-  cards:     [],
-  jobTypes:  [],
-  dragCardId: null,
-  nextId: 100,
+  stages:       [],
+  cards:        [],
+  jobTypes:     [],
+  appointments: [],
+  dragCardId:   null,
+  nextId:       100,
   selectedColor: STAGE_COLORS[0],
-  searchQuery: '',
+  searchQuery:  '',
+  calDate:      new Date(),          // วันที่ที่เลือกใน calendar
+  calViewMonth: new Date(),          // เดือนที่แสดงใน mini-calendar
 };
 
 let _editingCard = null;
@@ -533,15 +647,294 @@ function stageColor(id) {
 
 function render() {
   const el = document.getElementById('main-content');
-  el.innerHTML = state.view === 'pipeline' ? renderPipeline() : renderDashboard();
-  if (state.view === 'pipeline') bindDragEvents();
+  if (state.view === 'calendar') {
+    el.style.padding = '0';
+    el.innerHTML = renderCalendar();
+  } else {
+    el.style.padding = '';
+    el.innerHTML = state.view === 'pipeline' ? renderPipeline() : renderDashboard();
+    if (state.view === 'pipeline') bindDragEvents();
+  }
 }
 
 function switchView(v) {
   state.view = v;
-  document.getElementById('tab-pipeline').classList.toggle('active', v === 'pipeline');
+  document.getElementById('tab-calendar').classList.toggle('active',  v === 'calendar');
+  document.getElementById('tab-pipeline').classList.toggle('active',  v === 'pipeline');
   document.getElementById('tab-dashboard').classList.toggle('active', v === 'dashboard');
   render();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CALENDAR VIEW
+// ══════════════════════════════════════════════════════════════════
+
+function toDateStr(d) {
+  return d.getFullYear() + '-' +
+    String(d.getMonth()+1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0');
+}
+
+function fmtDateThai(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('th-TH', { weekday:'short', day:'numeric', month:'long', year:'numeric' });
+}
+
+function fmtTimeThai(timeStr) {
+  if (!timeStr) return '';
+  return timeStr.substring(0,5);
+}
+
+function apptDates() {
+  const s = new Set();
+  state.appointments.forEach(a => s.add(a.appt_date));
+  return s;
+}
+
+function apptsForDate(dateStr) {
+  return state.appointments
+    .filter(a => a.appt_date === dateStr)
+    .sort((a,b) => a.appt_time.localeCompare(b.appt_time));
+}
+
+function renderCalendar() {
+  const selStr = toDateStr(state.calDate);
+  const appts  = apptsForDate(selStr);
+  const datesWithAppt = apptDates();
+
+  // mini calendar
+  const vm   = state.calViewMonth;
+  const year = vm.getFullYear();
+  const mon  = vm.getMonth();
+  const firstDay = new Date(year, mon, 1).getDay();
+  const daysInMonth = new Date(year, mon+1, 0).getDate();
+  const todayStr = toDateStr(new Date());
+  const DOWS = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+  const MONTHS_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+                     'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+
+  let calCells = '';
+  // blank cells
+  for (let i = 0; i < firstDay; i++) calCells += `<div class="mini-cal-day empty-day other-month"></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dStr = year + '-' + String(mon+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    const isToday    = dStr === todayStr;
+    const isSelected = dStr === selStr;
+    const hasAppt    = datesWithAppt.has(dStr);
+    let cls = 'mini-cal-day';
+    if (isToday)    cls += ' today';
+    else if (isSelected) cls += ' selected';
+    if (hasAppt)    cls += ' has-appt';
+    calCells += `<div class="${cls}" onclick="calSelectDate('${dStr}')">${d}</div>`;
+  }
+
+  return `<div class="cal-wrap">
+    <!-- LEFT: Appointment list -->
+    <div class="cal-list-pane">
+      <div class="cal-list-header">
+        <div>
+          <div class="cal-list-date-title">${fmtDateThai(selStr)}</div>
+          <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px">${appts.length} นัดหมาย</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openApptForm(null,'${selStr}')">
+          <i class="ti ti-plus"></i> เพิ่มนัดหมาย
+        </button>
+      </div>
+      <div class="cal-list-body">
+        ${appts.length ? appts.map(a => `
+          <div class="appt-item" onclick="openApptForm(${a.id})">
+            <div class="appt-time-badge"><i class="ti ti-clock" style="font-size:10px"></i>${fmtTimeThai(a.appt_time)} น.</div>
+            <div class="appt-subject">${escHtml(a.subject)}</div>
+            ${a.card_title ? `<div class="appt-client"><i class="ti ti-building" style="font-size:10px"></i>${escHtml(a.card_title)}</div>` : ''}
+            ${a.detail ? `<div class="appt-detail-text">${escHtml(a.detail.substring(0,80))}${a.detail.length>80?'…':''}</div>` : ''}
+          </div>`).join('') :
+          `<div class="empty" style="margin-top:40px">
+            <i class="ti ti-calendar-off" style="font-size:36px;display:block;margin-bottom:10px"></i>
+            ไม่มีนัดหมายในวันนี้
+          </div>`}
+      </div>
+    </div>
+
+    <!-- RIGHT: Mini calendar -->
+    <div class="cal-right-pane">
+      <div class="mini-cal">
+        <div class="mini-cal-header">
+          <button class="mini-cal-nav" onclick="calPrevMonth()"><i class="ti ti-chevron-left"></i></button>
+          <div class="mini-cal-title">${MONTHS_TH[mon]} ${year + 543}</div>
+          <button class="mini-cal-nav" onclick="calNextMonth()"><i class="ti ti-chevron-right"></i></button>
+        </div>
+        <div class="mini-cal-grid">
+          ${DOWS.map(d => `<div class="mini-cal-dow">${d}</div>`).join('')}
+          ${calCells}
+        </div>
+      </div>
+      <div style="margin-top:20px;padding-top:14px;border-top:0.5px solid var(--border-light)">
+        <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:8px">สัญลักษณ์</div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--text-secondary)">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:22px;height:22px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700">8</div>
+            <span>วันนี้</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:22px;height:22px;border-radius:50%;background:var(--accent-light);border:1.5px solid var(--accent);display:flex;align-items:center;justify-content:center;color:var(--accent-dark);font-size:10px;font-weight:700">8</div>
+            <span>วันที่เลือก</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--danger);font-size:10px;font-weight:700">8</div>
+            <span>มีนัดหมาย</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function calSelectDate(dateStr) {
+  state.calDate = new Date(dateStr + 'T00:00:00');
+  // ถ้าเดือนต่างกัน ให้ sync calViewMonth ด้วย
+  if (state.calDate.getMonth() !== state.calViewMonth.getMonth() ||
+      state.calDate.getFullYear() !== state.calViewMonth.getFullYear()) {
+    state.calViewMonth = new Date(state.calDate.getFullYear(), state.calDate.getMonth(), 1);
+  }
+  render();
+}
+
+function calPrevMonth() {
+  const d = state.calViewMonth;
+  state.calViewMonth = new Date(d.getFullYear(), d.getMonth()-1, 1);
+  render();
+}
+function calNextMonth() {
+  const d = state.calViewMonth;
+  state.calViewMonth = new Date(d.getFullYear(), d.getMonth()+1, 1);
+  render();
+}
+
+// ── Appointment Form Modal ─────────────────────────────────────────────────────
+function openApptForm(apptId, defaultDate, fromCardId) {
+  const a = apptId ? state.appointments.find(x => x.id === apptId) : null;
+  const dateVal = a ? a.appt_date : (defaultDate || toDateStr(state.calDate));
+  const timeVal = a ? a.appt_time.substring(0,5) : '09:00';
+
+  // unique client list from cards
+  const clientOpts = [...new Map(state.cards.map(c => [c.title, c])).values()]
+    .sort((a,b) => a.title.localeCompare(b.title, 'th'))
+    .map(c => `<option value="${escHtml(c.id)}" data-title="${escHtml(c.title)}" ${a && a.card_id===c.id?'selected':''}>${escHtml(c.title)}</option>`)
+    .join('');
+
+  const backBtn = fromCardId
+    ? '<button class="btn btn-sm" onclick="closeModal();setTimeout(function(){openCardDetail(\'' + fromCardId + '\')},60)" style="padding:4px 10px;font-size:11px;flex-shrink:0"><i class=\"ti ti-arrow-left\"></i> กลับ Card</button>'
+    : '';
+  showModal(`
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+        ${backBtn}
+        <span class="modal-title" style="flex:1">${a ? 'แก้ไขนัดหมาย' : 'เพิ่มนัดหมาย'}</span>
+      </div>
+      <button class="close-btn" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div>
+        <div class="field-label">ลูกค้า / บริษัท</div>
+        <input type="text" id="appt-client-search" placeholder="ค้นหาชื่อลูกค้า..."
+          oninput="filterApptClients(this.value)"
+          value="${a ? escHtml(a.card_title||'') : ''}"
+          style="margin-bottom:6px">
+        <select id="appt-card-id" size="4"
+          style="width:100%;border-radius:var(--radius-md);font-size:12px;padding:4px"
+          onchange="syncApptClientSearch(this)">
+          <option value="">— ไม่ระบุ —</option>
+          ${clientOpts}
+        </select>
+      </div>
+      <div class="field-row">
+        <div>
+          <div class="field-label">วันที่นัดหมาย</div>
+          <input type="date" id="appt-date" value="${dateVal}">
+        </div>
+        <div>
+          <div class="field-label">เวลานัดหมาย</div>
+          <input type="time" id="appt-time" value="${timeVal}">
+        </div>
+      </div>
+      <div>
+        <div class="field-label">หัวข้อนัดหมาย *</div>
+        <input type="text" id="appt-subject" value="${a ? escHtml(a.subject) : ''}" placeholder="เช่น นำเสนอโครงการ, ประชุมติดตามงาน...">
+      </div>
+      <div>
+        <div class="field-label">รายละเอียด</div>
+        <textarea id="appt-detail" rows="4" placeholder="รายละเอียดเพิ่มเติม...">${a ? escHtml(a.detail||'') : ''}</textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      ${a ? `<button class="btn btn-danger" onclick="deleteAppt(${a.id})"><i class="ti ti-trash"></i> ลบ</button>` : ''}
+      <button class="btn" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveAppt(${a ? a.id : 'null'})"><i class="ti ti-check"></i> บันทึก</button>
+    </div>`);
+}
+
+function filterApptClients(q) {
+  const sel = document.getElementById('appt-card-id');
+  if (!sel) return;
+  Array.from(sel.options).forEach(opt => {
+    opt.style.display = (!q || opt.text.toLowerCase().includes(q.toLowerCase())) ? '' : 'none';
+  });
+}
+
+function syncApptClientSearch(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  const inp = document.getElementById('appt-client-search');
+  if (inp && opt && opt.value) inp.value = opt.getAttribute('data-title') || '';
+}
+
+async function saveAppt(apptId) {
+  const subject = document.getElementById('appt-subject').value.trim();
+  if (!subject) { alert('กรุณาระบุหัวข้อนัดหมาย'); return; }
+  const sel = document.getElementById('appt-card-id');
+  const selectedOpt = sel.options[sel.selectedIndex];
+  const cardId    = sel.value || null;
+  const cardTitle = cardId ? (selectedOpt.getAttribute('data-title') || selectedOpt.text) : null;
+  const payload = {
+    cardId, cardTitle,
+    apptDate: document.getElementById('appt-date').value,
+    apptTime: document.getElementById('appt-time').value + ':00',
+    subject,
+    detail: document.getElementById('appt-detail').value.trim() || null,
+  };
+  setBusy(true);
+  try {
+    if (apptId) {
+      await DB.updateAppointment(apptId, payload);
+      const idx = state.appointments.findIndex(a => a.id === apptId);
+      if (idx >= 0) state.appointments[idx] = { ...state.appointments[idx],
+        card_id: payload.cardId, card_title: payload.cardTitle,
+        appt_date: payload.apptDate, appt_time: payload.apptTime,
+        subject: payload.subject, detail: payload.detail };
+      showToast('✅ บันทึกนัดหมายสำเร็จ');
+    } else {
+      const saved = await DB.insertAppointment(payload);
+      state.appointments.push(saved);
+      state.calDate = new Date(payload.apptDate + 'T00:00:00');
+      showToast('✅ เพิ่มนัดหมายสำเร็จ');
+    }
+    closeModal();
+    if (state.view === 'calendar') render();
+  } catch(e) { showToast('❌ ' + e.message, true); }
+  finally { setBusy(false); }
+}
+
+async function deleteAppt(apptId) {
+  if (!confirm('ลบนัดหมายนี้?')) return;
+  setBusy(true);
+  try {
+    await DB.deleteAppointment(apptId);
+    state.appointments = state.appointments.filter(a => a.id !== apptId);
+    closeModal();
+    showToast('✅ ลบนัดหมายสำเร็จ');
+    if (state.view === 'calendar') render();
+  } catch(e) { showToast('❌ ' + e.message, true); }
+  finally { setBusy(false); }
 }
 
 // ── Pipeline ─────────────────────────────────────────────────────────────────
@@ -749,7 +1142,7 @@ function renderDashboard() {
         <div class="metric-sub">เฉพาะ End job</div>
       </div>
       <div class="metric-card" style="border-top:3px solid ${netProfit >= 0 ? '#639922' : '#E24B4A'}">
-        <div class="metric-label">กำไรสุทธิ1</div>
+        <div class="metric-label">กำไรสุทธิ</div>
         <div class="metric-value" style="color:${netProfit >= 0 ? 'var(--success)' : 'var(--danger)'}">฿${fmtM(Math.abs(netProfit))}${netProfit < 0 ? ' 📉' : ''}</div>
         <div class="metric-sub">มูลค่าปิด − ค่าใช้จ่าย</div>
       </div>
@@ -967,6 +1360,31 @@ function openCardDetail(id) {
   renderCardModal(false);
 }
 
+function renderCardApptList(cardId) {
+  if (!cardId) return '<div style="font-size:12px;color:var(--text-tertiary);padding:4px 0">บันทึกงานก่อนเพื่อดูนัดหมาย</div>';
+  const appts = state.appointments
+    .filter(a => a.card_id === cardId)
+    .sort((a, b) => (a.appt_date + a.appt_time).localeCompare(b.appt_date + b.appt_time));
+  if (!appts.length) return '<div style="font-size:12px;color:var(--text-tertiary);padding:4px 0">ยังไม่มีนัดหมาย</div>';
+  return '<div class="card-appt-list">' + appts.map(function(a) {
+    return '<div class="card-appt-row" onclick="goToApptFromCard(' + a.id + ',\'' + cardId + '\')">'
+      + '<div class="card-appt-date"><i class="ti ti-calendar" style="font-size:10px"></i>&nbsp;' + a.appt_date
+      + '<br><span style="font-size:11px">' + fmtTimeThai(a.appt_time) + ' น.</span></div>'
+      + '<div class="card-appt-subject">' + escHtml(a.subject) + '</div>'
+      + '<i class="ti ti-chevron-right" style="font-size:12px;color:var(--text-tertiary)"></i>'
+      + '</div>';
+  }).join('') + '</div>';
+}
+
+function goToApptFromCard(apptId, cardId) {
+  event.stopPropagation();
+  closeModal();
+  setTimeout(function() {
+    switchView('calendar');
+    openApptForm(apptId, null, cardId);
+  }, 80);
+}
+
 function renderCardModal(isNew) {
   const c = _editingCard;
   const days = isNew ? 0 : getDaysInStage(c);
@@ -1035,6 +1453,13 @@ function renderCardModal(isNew) {
           <input type="date" id="f-end" value="${c.endDate||''}">
         </div>
       </div>
+      <div>
+        <div class="field-label" style="margin-bottom:8px">ข้อมูลการนัดหมายงาน</div>
+        ${renderCardApptList(c.id)}
+      </div>
+
+      <hr class="section-divider">
+
       <div>
         <div class="field-label">หมายเหตุ</div>
         <textarea id="f-remark" rows="3" placeholder="บันทึกหมายเหตุเพิ่มเติม..." style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-input,var(--bg-secondary));color:var(--text-primary);box-sizing:border-box">${escHtml(c.remark||'')}</textarea>
@@ -1211,20 +1636,24 @@ async function initApp() {
     const sb = getSB();
 
     // โหลดข้อมูลพร้อมกัน
-    const [stagesRes, cardsRes, histRes, filesRes, jtRes] = await Promise.all([
+    const [stagesRes, cardsRes, histRes, filesRes, jtRes, apptRes] = await Promise.all([
       sb.from('stages').select('*').order('sort_order'),
       sb.from('cards').select('*').order('created_at'),
       sb.from('stage_history').select('*').order('entered_at'),
       sb.from('card_files').select('*').order('id'),
       sb.from('job_types').select('name').order('id'),
+      sb.from('appointments').select('*').order('appt_date').order('appt_time'),
     ]);
 
-    for (const r of [stagesRes, cardsRes, histRes, filesRes, jtRes]) {
+    for (const r of [stagesRes, cardsRes, histRes, filesRes, jtRes, apptRes]) {
       if (r.error) throw new Error(r.error.message);
     }
 
-    state.stages   = stagesRes.data;
-    state.jobTypes = jtRes.data.map(r => r.name);
+    state.stages       = stagesRes.data;
+    state.jobTypes     = jtRes.data.map(r => r.name);
+    state.appointments = apptRes.data || [];
+    state.calDate      = new Date();
+    state.calViewMonth = new Date();
 
     // รวม history + files เข้า cards
     state.cards = cardsRes.data.map(c => ({
