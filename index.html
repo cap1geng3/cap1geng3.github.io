@@ -364,6 +364,115 @@
   .card-appt-row:hover { box-shadow: var(--shadow-sm); }
   .card-appt-date { font-size: 11px; font-weight: 700; color: var(--accent); white-space: nowrap; }
   .card-appt-subject { flex: 1; font-size: 12px; font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* ── Login / Register ─────────────────────────────── */
+  #login-screen {
+    position: fixed; inset: 0; z-index: 9999;
+    background: #ebebeb;
+    display: flex; align-items: center; justify-content: center;
+    font-family: inherit;
+  }
+  .login-box {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    width: 360px;
+    padding: 36px 32px 28px;
+    animation: loginFadeIn 0.3s ease;
+  }
+  @keyframes loginFadeIn {
+    from { opacity:0; transform:translateY(14px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+  .login-title {
+    font-size: 22px; font-weight: 700;
+    color: #1a1a2e; text-align: center; margin-bottom: 24px;
+  }
+  /* input group card */
+  .login-input-group {
+    border: 1px solid #dde0e8; border-radius: 10px;
+    overflow: hidden; margin-bottom: 18px;
+  }
+  .login-input-group .login-row {
+    display: flex; align-items: center;
+    border-bottom: 1px solid #dde0e8;
+  }
+  .login-input-group .login-row:last-child { border-bottom: none; }
+  .login-input {
+    flex: 1; border: none; outline: none;
+    padding: 14px 14px; font-size: 14px; color: #1a1a2e;
+    background: transparent;
+  }
+  .login-input::placeholder { color: #9aa0b0; }
+  .login-pw-eye {
+    background: none; border: none; cursor: pointer;
+    color: #9aa0b0; font-size: 17px; padding: 0 12px;
+    line-height: 1; transition: color 0.15s;
+  }
+  .login-pw-eye:hover { color: #2e77d0; }
+  /* primary button */
+  .login-btn {
+    width: 100%; padding: 13px; border: none;
+    border-radius: 10px; font-size: 15px; font-weight: 700;
+    cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin-bottom: 14px;
+  }
+  .login-btn.primary { background: #2e77d0; color: #fff; }
+  .login-btn.primary:hover { opacity: 0.9; transform: translateY(-1px); }
+  .login-btn.primary:active { transform: translateY(0); }
+  .login-btn.primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+  /* sign-in link */
+  .login-signin-link {
+    display: block; text-align: center;
+    font-size: 14px; font-weight: 700; color: #1a1a2e;
+    cursor: pointer; padding: 4px 0;
+    transition: color 0.15s;
+  }
+  .login-signin-link:hover { color: #2e77d0; }
+  /* messages */
+  .login-error {
+    background: #fff2f2; border: 1px solid #f5c2c7;
+    border-radius: 8px; padding: 9px 12px; font-size: 12px;
+    color: #842029; margin-bottom: 14px; display: none;
+    align-items: center; gap: 8px;
+  }
+  .login-success {
+    background: #f0faf4; border: 1px solid #b7dfc7;
+    border-radius: 8px; padding: 9px 12px; font-size: 12px;
+    color: #0a5930; margin-bottom: 14px; display: none;
+    align-items: center; gap: 8px;
+  }
+  /* register extras */
+  .login-label {
+    display: block; font-size: 12px; font-weight: 600;
+    color: #3d4a5c; margin-bottom: 6px;
+  }
+  .login-field { margin-bottom: 14px; }
+  .login-pw-wrap { position: relative; }
+  .login-input-solo {
+    width: 100%; padding: 11px 38px 11px 13px;
+    border: 1px solid #dde0e8; border-radius: 8px;
+    font-size: 14px; color: #1a1a2e; background: #fff;
+    box-sizing: border-box; outline: none; transition: border-color 0.2s;
+  }
+  .login-input-solo:focus { border-color: #2e77d0; box-shadow: 0 0 0 3px rgba(46,119,208,.12); }
+  .login-input-solo.error { border-color: #dc3545; }
+  .login-pw-wrap .login-pw-eye {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    padding: 0;
+  }
+  .login-back {
+    background: none; border: none; cursor: pointer; color: #2e77d0;
+    font-size: 12px; font-weight: 600; padding: 0;
+    display: flex; align-items: center; gap: 4px; margin-bottom: 18px;
+  }
+  .login-back:hover { text-decoration: underline; }
+  .login-screen-title {
+    font-size: 16px; font-weight: 700; color: #1a1a2e;
+    margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+  }
+  .login-spinner { animation: spin .7s linear infinite; }
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
@@ -1694,8 +1803,289 @@ async function initApp() {
   }
 }
 
-initApp();
+// ════════════════════════════════════════════════════════════════
+//  LOGIN / REGISTER
+// ════════════════════════════════════════════════════════════════
+
+// ── SHA-256 (Web Crypto API) ──────────────────────────────────────
+async function sha256(str) {
+  const buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// ── UI helpers ────────────────────────────────────────────────────
+function togglePw(inputId, btn) {
+  const el = document.getElementById(inputId);
+  const show = el.type === 'password';
+  el.type = show ? 'text' : 'password';
+  btn.innerHTML = show ? '<i class="ti ti-eye-off"></i>' : '<i class="ti ti-eye"></i>';
+}
+
+function showLoginPanel() {
+  document.getElementById('login-panel').style.display    = '';
+  document.getElementById('register-panel').style.display = 'none';
+  document.getElementById('login-err').style.display      = 'none';
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
+}
+
+function showRegister() {
+  document.getElementById('login-panel').style.display    = 'none';
+  document.getElementById('register-panel').style.display = '';
+  clearRegMsg();
+  document.getElementById('reg-user').value  = '';
+  document.getElementById('reg-pass').value  = '';
+  document.getElementById('reg-pass2').value = '';
+  setTimeout(() => document.getElementById('reg-user').focus(), 50);
+}
+
+function setLoginErr(msg) {
+  const el = document.getElementById('login-err');
+  document.getElementById('login-err-msg').textContent = msg;
+  el.style.display = 'flex';
+  document.getElementById('login-user').classList.add('error');
+  document.getElementById('login-pass').classList.add('error');
+}
+
+function clearRegMsg() {
+  document.getElementById('reg-err').style.display = 'none';
+  document.getElementById('reg-ok').style.display  = 'none';
+  ['reg-user','reg-pass','reg-pass2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('error');
+  });
+}
+
+function setRegErr(msg, fieldId) {
+  const el = document.getElementById('reg-err');
+  document.getElementById('reg-err-msg').textContent = msg;
+  el.style.display = 'flex';
+  if (fieldId) document.getElementById(fieldId).classList.add('error');
+}
+
+function setRegOk(msg) {
+  const el = document.getElementById('reg-ok');
+  document.getElementById('reg-ok-msg').textContent = msg;
+  el.style.display = 'flex';
+}
+
+// ── LOGIN ─────────────────────────────────────────────────────────
+async function doLogin() {
+  const username = (document.getElementById('login-user').value || '').trim();
+  const password =  document.getElementById('login-pass').value || '';
+
+  document.getElementById('login-err').style.display = 'none';
+  ['login-user','login-pass'].forEach(id => document.getElementById(id).classList.remove('error'));
+
+  if (!username || !password) {
+    setLoginErr('กรุณากรอกชื่อผู้ใช้งานและรหัสผ่าน');
+    return;
+  }
+
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2 login-spinner"></i> กำลังตรวจสอบ...';
+
+  try {
+    const hash = await sha256(password);
+    const sb = getSB();
+    const { data, error } = await sb
+      .from('crm_users')
+      .select('id, username')
+      .eq('username', username)
+      .eq('password_hash', hash)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!data) {
+      setLoginErr('ระบุชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+      document.getElementById('login-pass').value = '';
+    } else {
+      // บันทึก session (ชั่วคราวใน sessionStorage)
+      sessionStorage.setItem('crm_user', JSON.stringify({ id: data.id, username: data.username }));
+      // ซ่อน login screen และโหลดแอป
+      document.getElementById('login-screen').style.display = 'none';
+      initApp();
+    }
+  } catch(e) {
+    setLoginErr('เกิดข้อผิดพลาด: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-login"></i> เข้าสู่ระบบ';
+  }
+}
+
+// ── REGISTER ──────────────────────────────────────────────────────
+async function doRegister() {
+  clearRegMsg();
+  const username = (document.getElementById('reg-user').value || '').trim();
+  const pass1    =  document.getElementById('reg-pass').value  || '';
+  const pass2    =  document.getElementById('reg-pass2').value || '';
+
+  // Validate
+  if (!username) { setRegErr('กรุณาระบุชื่อผู้ใช้งาน', 'reg-user'); return; }
+  if (username.length < 3) { setRegErr('ชื่อผู้ใช้งานต้องมีอย่างน้อย 3 ตัวอักษร', 'reg-user'); return; }
+  if (!pass1) { setRegErr('กรุณาระบุรหัสผ่าน', 'reg-pass'); return; }
+  if (pass1.length < 6) { setRegErr('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร', 'reg-pass'); return; }
+  if (pass1 !== pass2) { setRegErr('รหัสผ่านทั้งสองไม่ตรงกัน', 'reg-pass2'); return; }
+
+  const btn = document.getElementById('reg-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2 login-spinner"></i> กำลังบันทึก...';
+
+  try {
+    const hash = await sha256(pass1);
+    const sb = getSB();
+
+    // ตรวจสอบชื่อซ้ำ
+    const { data: exist } = await sb
+      .from('crm_users')
+      .select('id')
+      .eq('username', username)
+      .maybeSingle();
+
+    if (exist) {
+      setRegErr('ชื่อผู้ใช้งาน "' + username + '" มีอยู่แล้ว กรุณาเลือกชื่ออื่น', 'reg-user');
+      return;
+    }
+
+    // INSERT
+    const { error } = await sb.from('crm_users').insert({ username, password_hash: hash });
+    if (error) throw error;
+
+    setRegOk('สร้างผู้ใช้งาน "' + username + '" สำเร็จแล้ว กรุณาเข้าสู่ระบบ');
+    document.getElementById('reg-user').value  = '';
+    document.getElementById('reg-pass').value  = '';
+    document.getElementById('reg-pass2').value = '';
+    // กลับหน้า login อัตโนมัติ 1.8 วิ
+    setTimeout(() => {
+      showLoginPanel();
+      document.getElementById('login-user').value = username;
+      document.getElementById('login-pass').focus();
+    }, 1800);
+
+  } catch(e) {
+    setRegErr('เกิดข้อผิดพลาด: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-user-check"></i> บันทึกผู้ใช้งาน';
+  }
+}
+
+// ── ตรวจ session เมื่อโหลดหน้า ────────────────────────────────────
+(function checkSession() {
+  const user = sessionStorage.getItem('crm_user');
+  if (user) {
+    // มี session อยู่ — ซ่อน login และโหลดแอปเลย
+    try {
+      JSON.parse(user); // validate
+      document.getElementById('login-screen').style.display = 'none';
+      initApp();
+    } catch(e) {
+      sessionStorage.removeItem('crm_user');
+    }
+  } else {
+    // ไม่มี session — แสดง login และโฟกัส input
+    setTimeout(() => {
+      const u = document.getElementById('login-user');
+      if (u) u.focus();
+    }, 100);
+  }
+})();
+
 
 </script>
+<!-- ══════════════════════════════════════════════════
+     LOGIN / REGISTER SCREEN
+══════════════════════════════════════════════════ -->
+<div id="login-screen">
+
+  <!-- ── LOGIN PANEL ── -->
+  <div class="login-box" id="login-panel">
+    <div class="login-title">Form Login</div>
+
+    <div class="login-error" id="login-err">
+      <i class="ti ti-alert-circle"></i>
+      <span id="login-err-msg">ระบุชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง</span>
+    </div>
+
+    <!-- Username + Password ในกล่องเดียว -->
+    <div class="login-input-group">
+      <div class="login-row">
+        <input class="login-input" type="text" id="login-user"
+          placeholder="Username" autocomplete="username"
+          onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
+      </div>
+      <div class="login-row">
+        <input class="login-input" type="password" id="login-pass"
+          placeholder="Password" autocomplete="current-password"
+          onkeydown="if(event.key==='Enter')doLogin()">
+        <button class="login-pw-eye" onclick="togglePw('login-pass',this)" tabindex="-1">
+          <i class="ti ti-eye"></i>
+        </button>
+      </div>
+    </div>
+
+    <button class="login-btn primary" id="login-btn" onclick="doLogin()">
+      Login
+    </button>
+
+    <span class="login-signin-link" onclick="showRegister()">Sign In</span>
+  </div>
+
+  <!-- ── REGISTER PANEL ── -->
+  <div class="login-box" id="register-panel" style="display:none">
+    <button class="login-back" onclick="showLoginPanel()">
+      <i class="ti ti-arrow-left"></i> กลับหน้า Login
+    </button>
+    <div class="login-screen-title">
+      <i class="ti ti-user-plus" style="color:#2e77d0"></i>
+      สร้างชื่อผู้ใช้งานใหม่
+    </div>
+
+    <div class="login-error" id="reg-err">
+      <i class="ti ti-alert-circle"></i>
+      <span id="reg-err-msg"></span>
+    </div>
+    <div class="login-success" id="reg-ok">
+      <i class="ti ti-circle-check"></i>
+      <span id="reg-ok-msg">สร้างผู้ใช้งานสำเร็จ</span>
+    </div>
+
+    <div class="login-field">
+      <label class="login-label">ชื่อผู้ใช้งาน <span style="color:#dc3545">*</span></label>
+      <input class="login-input-solo" type="text" id="reg-user"
+        placeholder="ระบุชื่อผู้ใช้งาน" autocomplete="off" oninput="clearRegMsg()">
+    </div>
+    <div class="login-field">
+      <label class="login-label">รหัสผ่าน <span style="color:#dc3545">*</span></label>
+      <div class="login-pw-wrap">
+        <input class="login-input-solo" type="password" id="reg-pass"
+          placeholder="อย่างน้อย 6 ตัวอักษร" autocomplete="new-password" oninput="clearRegMsg()">
+        <button class="login-pw-eye" onclick="togglePw('reg-pass',this)" tabindex="-1">
+          <i class="ti ti-eye"></i>
+        </button>
+      </div>
+    </div>
+    <div class="login-field">
+      <label class="login-label">ยืนยันรหัสผ่าน <span style="color:#dc3545">*</span></label>
+      <div class="login-pw-wrap">
+        <input class="login-input-solo" type="password" id="reg-pass2"
+          placeholder="กรอกรหัสผ่านอีกครั้ง" autocomplete="new-password"
+          oninput="clearRegMsg()" onkeydown="if(event.key==='Enter')doRegister()">
+        <button class="login-pw-eye" onclick="togglePw('reg-pass2',this)" tabindex="-1">
+          <i class="ti ti-eye"></i>
+        </button>
+      </div>
+    </div>
+
+    <button class="login-btn primary" id="reg-btn" onclick="doRegister()">
+      <i class="ti ti-user-check"></i> บันทึกผู้ใช้งาน
+    </button>
+  </div>
+
+</div>
+
 </body>
 </html>
